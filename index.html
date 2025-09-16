@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Social PRM — Local-first Contacts</title>
+<style>
+  :root{--bg:#0f1724;--card:#081224;--muted:#9aa4b2;--accent:#7dd3fc;--glass: rgba(255,255,255,0.03)}
+  body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial;margin:0;background:linear-gradient(180deg,#071025 0%, #071827 100%);color:#e6eef6}
+  header{display:flex;gap:12px;align-items:center;padding:16px;background:rgba(255,255,255,0.02);border-bottom:1px solid rgba(255,255,255,0.03)}
+  h1{margin:0;font-size:18px}
+  .controls{margin-left:auto;display:flex;gap:8px;align-items:center}
+  button,input[type=file]{background:transparent;border:1px solid rgba(255,255,255,0.06);color:inherit;padding:8px 10px;border-radius:8px;cursor:pointer}
+  main{display:flex;gap:16px;padding:16px}
+  .left{width:360px;background:var(--card);border-radius:12px;padding:12px;max-height:76vh;overflow:auto}
+  .search{display:flex;gap:8px;margin-bottom:8px}
+  .rolodex{display:flex;flex-direction:column;gap:8px}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.02);cursor:pointer}
+  .card strong{display:block}
+  .meta{font-size:12px;color:var(--muted)}
+  .tags{margin-top:6px;font-size:12px;color:var(--accent)}
+  .right{flex:1;background:var(--card);border-radius:12px;padding:16px;max-height:76vh;overflow:auto}
+  label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+  input[type=text], textarea, select{width:100%;padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:inherit}
+  textarea{min-height:160px}
+  .group-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+  .chip{background:rgba(255,255,255,0.02);padding:6px 8px;border-radius:999px;border:1px solid rgba(255,255,255,0.03);font-size:12px}
+  footer{padding:12px;text-align:center;color:var(--muted);font-size:12px}
+  .small{font-size:12px;color:var(--muted)}
+  .field-row {display:flex;gap:8px;margin-bottom:8px}
+  .field-row > div {flex:1}
+  .muted {color:var(--muted);font-size:13px}
+  .topline {display:flex;gap:8px;align-items:center}
+  .pill {padding:6px 8px;border-radius:999px;border:1px solid rgba(255,255,255,0.03);background:rgba(255,255,255,0.01)}
+  .danger {border-color:rgba(255,80,80,0.25)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Social PRM — Local-first</h1>
+  <div class="controls">
+    <input id="fileImport" type="file" accept=".csv,.json,.vcf" title="Import CSV / JSON / vCard"/>
+    <button id="addFieldBtn" title="Add a custom field">Add field</button>
+    <button id="exportMd">Export Markdown Bundle</button>
+    <button id="downloadRepo">Download GitHub Repo Zip</button>
+  </div>
+</header>
+
+<main>
+  <section class="left">
+    <div class="search">
+      <input id="q" placeholder="Search name, tag, platform, country..." />
+      <select id="filterTag"><option value="">All tags</option></select>
+    </div>
+    <div style="margin-bottom:8px;">
+      <button id="newContact">New Contact</button>
+      <button id="bulkExport" style="margin-left:8px">Export Selected</button>
+    </div>
+    <div id="rolodex" class="rolodex"></div>
+  </section>
+
+  <section class="right">
+    <div id="inspector">
+      <div class="topline">
+        <div style="flex:1">
+          <label>Name</label>
+          <input id="name" placeholder="Full name" />
+        </div>
+        <div style="width:160px">
+          <label>Platform</label>
+          <input id="platform" placeholder="LinkedIn / Instagram / WhatsApp" />
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div>
+          <label>Headline</label>
+          <input id="headline" placeholder="Headline / title" />
+        </div>
+        <div>
+          <label>Country</label>
+          <input id="country" placeholder="e.g. United States" />
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div>
+          <label>Handle</label>
+          <input id="handle" placeholder="@handle or username" />
+        </div>
+        <div>
+          <label>URL</label>
+          <input id="url" placeholder="Profile URL" />
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div>
+          <label>Email</label>
+          <input id="email" placeholder="email@example.com" />
+        </div>
+        <div>
+          <label>Phone</label>
+          <input id="phone" placeholder="+1234567890" />
+        </div>
+      </div>
+
+      <div>
+        <label>Website</label>
+        <input id="website" placeholder="https://..." />
+      </div>
+
+      <div style="margin-top:10px">
+        <label>Tags (comma separated) — use profession/ and arena/ prefixes</label>
+        <input id="tags" placeholder="profession/engineer, arena/hospitality" />
+        <div class="group-row" id="tagChips"></div>
+      </div>
+
+      <div style="margin-top:10px">
+        <label>Notes (Markdown)</label>
+        <textarea id="note"></textarea>
+      </div>
+
+      <div style="margin-top:10px">
+        <label>Custom fields</label>
+        <div id="customFields"></div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button id="saveContact">Save</button>
+        <button id="deleteContact" class="danger">Delete</button>
+      </div>
+
+      <hr style="margin:16px 0;border-color:rgba(255,255,255,0.03)">
+      <div class="small">This is a local-first Social PRM web app. It stores contacts in your browser (IndexedDB). Use "Export Markdown Bundle" to move data into Obsidian. The DB is malleable: add custom fields and they'll be stored per contact in a flexible JSON structure.</div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <span class="small">Generated for you — save as <code>index.html</code>. Open in Chrome/Edge/Brave for best File System Access API support.</span>
+</footer>
+
+<script>
+/* Local-first Social PRM
+   - IndexedDB stores contacts and schema (custom fields)
+   - Built-in fields include country
+   - Custom fields are saved per contact under contact.extra
+   - Export to Markdown bundle for Obsidian
+*/
+
+// ---------- IndexedDB helper ----------
+const DB_NAME = 'prm_local_db_v1';
+function openDB(){
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if(!db.objectStoreNames.contains('contacts')) {
+        const cs = db.createObjectStore('contacts', { keyPath: 'id' });
+        cs.createIndex('by_name', 'name', { unique: false });
+      }
+      if(!db.objectStoreNames.contains('fields')){
+        db.createObjectStore('fields', { keyPath: 'name' });
+      }
+    };
+    req.onsuccess = (e) => resolve(e.target.result);
+    req.onerror = (e) => reject(e);
+  });
+}
+
+async function getAllContacts(){
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('contacts','readonly');
+    const store = tx.objectStore('contacts');
+    const req = store.getAll();
+    req.onsuccess = ()=> res(req.result || []);
+    req.onerror = ()=> rej(req.error);
+  });
+}
+
+async function upsertContact(contact){
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('contacts','readwrite');
+    const store = tx.objectStore('contacts');
+    contact.lastModified = new Date().toISOString();
+    store.put(contact).onsuccess = ()=> res(true);
+    tx.onerror = (e)=> rej(e);
+  });
+}
+
+async function deleteContactById(id){
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('contacts','readwrite');
+    tx.objectStore('contacts').delete(id).onsuccess = ()=> res(true);
+    tx.onerror = (e)=> rej(e);
+  });
+}
+
+async function getContactById(id){
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('contacts','readonly');
+    tx.objectStore('contacts').get(id).onsuccess = ()=> res(tx.objectStore('contacts').get(id).result || null);
+    tx.onerror = (e)=> rej(e);
+  });
+}
+
+// Fields (custom schema)
+async function getAllFields(){
+  const db = await openDB();
+  return new Promise((res, rej)=> {
+    const tx = db.transaction('fields','readonly');
+    tx.objectStore('fields').getAll().onsuccess = (ev)=> res(ev.target.result || []);
+    tx.onerror = (e)=> rej(e);
+  });
+}
+async function addField(field){
+  const db = await openDB();
+  return new Promise((res, rej)=> {
+    const tx = db.transaction('fields','readwrite');
+    tx.objectStore('fields').put(field).onsuccess = ()=> res(true);
+    tx.onerror = (e)=> rej(e);
+  });
+}
+async function deleteField(name){
+  const db = await openDB();
+  return new Promise((res, rej)=> {
+    const tx = db.transaction('fields','readwrite');
+    tx.objectStore('fields').delete(name).onsuccess = ()=> res(true);
+    tx.onerror = (e)=> rej(e);
+  });
+}
+
+// ---------- Utilities ----------
+function uid(){ return 'c_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8); }
+function sanitizeFilename(n){ return (n||'untitled').replace(/[\\/:*?"<>|#]/g,'').replace(/\s+/g,' ').trim(); }
+function escapeMarkdown(s){ if(!s) return ''; return String(s).replace(/\`/g,'\\`'); }
+
+// ---------- Rendering ----------
+let contacts = [];
+let selectedId = null;
+async function refresh(){
+  contacts = await getAllContacts();
+  renderRolodex(contacts);
+  refreshTagFilter();
+  renderCustomFields();
+}
+function renderRolodex(list){
+  const root = document.getElementById('rolodex'); root.innerHTML='';
+  list.sort((a,b)=> (a.name||'').localeCompare(b.name||''));
+  list.forEach(c => {
+    const div = document.createElement('div'); div.className='card';
+    div.innerHTML = '<strong>'+escapeHtml(c.name||'Untitled')+'</strong><div class="meta">'+(c.platform||'')+' • '+(c.headline||'')+'</div><div class="tags">'+((c.tags||[]).slice(0,3).join(', '))+'</div>';
+    div.onclick = ()=> selectContact(c.id);
+    // simple selection highlight
+    if(c.id===selectedId) div.style.outline='2px solid rgba(125,211,252,0.18)';
+    root.appendChild(div);
+  });
+}
+function escapeHtml(s){ if(!s) return ''; return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+
+function renderTagChips(){
+  const row = document.getElementById('tagChips'); row.innerHTML='';
+  const tags = (document.getElementById('tags').value||'').split(',').map(s=>s.trim()).filter(Boolean);
+  tags.forEach(t=>{ const d = document.createElement('div'); d.className='chip'; d.textContent = t; row.appendChild(d); });
+}
+
+// Custom fields UI
+async function renderCustomFields(){
+  const container = document.getElementById('customFields'); container.innerHTML='';
+  const fields = await getAllFields();
+  const selected = contacts.find(c=>c.id===selectedId) || {};
+  fields.forEach(f=>{
+    const val = (selected.extra && selected.extra[f.name]) || '';
+    const row = document.createElement('div'); row.style.marginBottom='8px';
+    row.innerHTML = `<label style="font-size:12px;color:var(--muted)">${escapeHtml(f.label||f.name)}</label>`;
+    const input = document.createElement('input'); input.type='text'; input.value = val; input.dataset.field = f.name;
+    input.onchange = ()=> {
+      const v = input.value;
+      // write into form but not commit DB until Save clicked
+      input.dataset.value = v;
+    };
+    row.appendChild(input);
+    const del = document.createElement('button'); del.textContent='Remove'; del.style.marginLeft='8px';
+    del.onclick = async ()=> { if(!confirm('Remove field from schema? This will not delete existing values from contacts but will hide it.')){return;} await deleteField(f.name); await refresh(); };
+    row.appendChild(del);
+    container.appendChild(row);
+  });
+  // show add field UI area
+  const addRow = document.createElement('div'); addRow.style.marginTop='8px';
+  addRow.innerHTML = `<input id="newFieldName" placeholder="custom_field_name" style="width:45%;display:inline-block"/><input id="newFieldLabel" placeholder="Label (optional)" style="width:45%;display:inline-block;margin-left:8px"/><button id="createField" style="display:inline-block;margin-left:8px">Create</button>`;
+  container.appendChild(addRow);
+  document.getElementById('createField').onclick = async ()=> {
+    const name = (document.getElementById('newFieldName').value||'').trim();
+    if(!name) return alert('Field name required');
+    const label = (document.getElementById('newFieldLabel').value||'').trim();
+    await addField({ name, label: label||name });
+    document.getElementById('newFieldName').value = ''; document.getElementById('newFieldLabel').value='';
+    await refresh();
+  };
+}
+
+// ---------- Selection ----------
+function selectContact(id){
+  selectedId = id;
+  const c = contacts.find(x=>x.id===id);
+  if(!c) return;
+  document.getElementById('name').value = c.name||'';
+  document.getElementById('platform').value = c.platform||'';
+  document.getElementById('headline').value = c.headline||'';
+  document.getElementById('country').value = c.country||'';
+  document.getElementById('handle').value = c.handle||'';
+  document.getElementById('url').value = c.url||'';
+  document.getElementById('email').value = c.email||'';
+  document.getElementById('phone').value = c.phone||'';
+  document.getElementById('website').value = c.website||'';
+  document.getElementById('tags').value = (c.tags||[]).join(', ');
+  document.getElementById('note').value = c.notes||'';
+  renderTagChips();
+  renderCustomFields();
+  renderRolodex(contacts);
+}
+
+// ---------- Save/Delete ----------
+document.getElementById('saveContact').onclick = async ()=> {
+  const c = await buildContactFromForm();
+  if(!c.name) return alert('Name is recommended.');
+  const exists = contacts.find(x => (x.email && x.email===c.email) || (x.handle && x.handle===c.handle));
+  if(!selectedId && exists){
+    if(!confirm('A contact with same email or handle exists. Create duplicate?')) return;
+  }
+  await upsertContact(c);
+  selectedId = c.id;
+  await refresh();
+  alert('Saved locally (IndexedDB). Use Export to push to Obsidian.');
+};
+
+document.getElementById('deleteContact').onclick = async ()=> {
+  if(!selectedId) return alert('Select a contact first');
+  if(!confirm('Delete contact?')) return;
+  await deleteContactById(selectedId);
+  selectedId = null;
+  await refresh();
+};
+
+// build contact object from form and custom fields
+async function buildContactFromForm(){
+  const id = selectedId || uid();
+  const tags = (document.getElementById('tags').value||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const contact = {
+    id,
+    name: document.getElementById('name').value.trim(),
+    platform: document.getElementById('platform').value.trim(),
+    headline: document.getElementById('headline').value.trim(),
+    country: document.getElementById('country').value.trim(),
+    handle: document.getElementById('handle').value.trim(),
+    url: document.getElementById('url').value.trim(),
+    email: document.getElementById('email').value.trim(),
+    phone: document.getElementById('phone').value.trim(),
+    website: document.getElementById('website').value.trim(),
+    tags,
+    notes: document.getElementById('note').value,
+    extra: {}
+  };
+  // capture custom field inputs rendered earlier
+  const fields = await getAllFields();
+  fields.forEach(f=>{
+    const input = document.querySelector('[data-field="'+f.name+'"]');
+    if(input){
+      const v = input.dataset.value !== undefined ? input.dataset.value : input.value;
+      if(v !== undefined && v !== null && String(v).trim() !== '') contact.extra[f.name] = v;
+    }
+  });
+  return contact;
+}
+
+// ---------- Import handlers (CSV / JSON / vCard) ----------
+document.getElementById('fileImport').addEventListener('change', async (ev)=>{
+  const f = ev.target.files[0]; if(!f) return;
+  const txt = await f.text();
+  if(f.name.endsWith('.csv')) parseCSV(txt);
+  else if(f.name.endsWith('.json')) parseJSON(txt);
+  else if(f.name.endsWith('.vcf')) parseVCard(txt);
+  document.getElementById('fileImport').value = '';
+});
+
+function parseCSV(txt){
+  const rows = txt.trim().split(/\r?\n/).map(r=>r.split(','));
+  const header = rows.shift().map(h=>h.trim().toLowerCase());
+  rows.forEach(r=>{
+    const obj = { id: uid(), extra: {}, tags: [] };
+    r.forEach((cell,i)=>{
+      const key = header[i]||('col'+i);
+      const val = cell?.trim();
+      if(!val) return;
+      if(key.includes('tag')) obj.tags = val.split(';').map(s=>s.trim());
+      else if(key.includes('note')) obj.notes = val;
+      else if(key.includes('platform')) obj.platform = val;
+      else if(key.includes('email')) obj.email = val;
+      else if(key.includes('phone')) obj.phone = val;
+      else if(key.includes('website')) obj.website = val;
+      else if(key.includes('country')) obj.country = val;
+      else if(key.includes('headline')) obj.headline = val;
+      else if(key.includes('name')) obj.name = val;
+      else if(key.includes('handle')||key.includes('username')) obj.handle = val;
+      else obj.extra[key] = val;
+    });
+    upsertContact(obj);
+  });
+  setTimeout(()=>refresh(),300);
+  alert('CSV imported (best-effort). Review and save contacts.');
+}
+
+function parseJSON(txt){
+  try{
+    const data = JSON.parse(txt);
+    const arr = Array.isArray(data) ? data : (data.items || [data]);
+    arr.forEach(d=>{
+      const n = normalizeJSONToContact(d);
+      upsertContact(n);
+    });
+    setTimeout(()=>refresh(),300);
+    alert('JSON imported.');
+  }catch(e){ alert('Invalid JSON'); }
+}
+
+function normalizeJSONToContact(d){
+  return {
+    id: d.id || uid(),
+    name: d.name || d.fullName || d.displayName || '',
+    platform: d.platform || d.source || '',
+    headline: d.headline || d.title || '',
+    country: d.country || '',
+    handle: d.handle || d.username || '',
+    url: d.url || d.profileUrl || '',
+    email: d.email || '',
+    phone: d.phone || '',
+    website: d.website || '',
+    tags: d.tags || [],
+    notes: d.notes || d.note || '',
+    extra: d.extra || {}
+  };
+}
+
+function parseVCard(txt){
+  const blocks = txt.split(/\nEND:VCARD/);
+  blocks.forEach(b=>{
+    if(!b.trim()) return;
+    const c = { id: uid(), extra: {}, tags: [] };
+    const lines = b.split(/\r?\n/);
+    lines.forEach(l=>{
+      if(l.startsWith('FN:')) c.name = l.slice(3);
+      else if(l.startsWith('TEL')) c.phone = l.split(':').pop();
+      else if(l.startsWith('EMAIL')) c.email = l.split(':').pop();
+      else if(l.startsWith('NOTE')) c.notes = l.split(':').pop();
+    });
+    upsertContact(c);
+  });
+  setTimeout(()=>refresh(),300);
+  alert('vCard imported (best-effort).');
+}
+
+// ---------- Export to Markdown bundle ----------
+document.getElementById('exportMd').addEventListener('click', async ()=>{
+  const list = await getAllContacts();
+  downloadMarkdownBundle(list);
+});
+
+document.getElementById('bulkExport').addEventListener('click', async ()=>{
+  const selected = await getSelectedContactsFromUI();
+  if(selected.length===0) return alert('No contacts selected (click cards to select).');
+  downloadMarkdownBundle(selected);
+});
+
+function contactToMarkdown(c){
+  const fm = ['---',
+    `id: "${c.id}"`,
+    `platform: "${c.platform||''}"`,
+    `name: "${escapeMarkdown(c.name||'')}"`,
+    `headline: "${escapeMarkdown(c.headline||'')}"`,
+    `url: "${c.url||''}"`,
+    `handle: "${c.handle||''}"`,
+    `email: "${c.email||''}"`,
+    `phone: "${c.phone||''}"`,
+    `website: "${c.website||''}"`,
+    `country: "${c.country||''}"`,
+    `tags: [${(c.tags||[]).map(t=>'"'+t+'"').join(', ')}]`,
+    `lastModified: "${c.lastModified||''}"`,
+    '---\n'
+  ].join('\n');
+  const extra = (c.extra && Object.keys(c.extra).length) ? '\n## Extra\n' + Object.entries(c.extra).map(([k,v])=>`- **${k}**: ${v}`).join('\n') + '\n' : '';
+  const notes = (c.notes||'') ? '\n' + c.notes + '\n' : '';
+  return fm + notes + extra + '\n';
+}
+
+function downloadMarkdownBundle(list){
+  const parts = list.map(c => `===FILE===${sanitizeFilename((c.name||c.id)+'.md')}\n` + contactToMarkdown(c));
+  const blob = new Blob([parts.join('\n')], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'prm_contacts_bundle.txt'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+  alert('Downloaded bundle as prm_contacts_bundle.txt — move contents into your Obsidian vault or split into files.');
+}
+
+// selected contacts helper (simple approach using selection state)
+async function getSelectedContactsFromUI(){
+  // currently we treat selectedId as single selection; extend to multi-select if needed
+  if(!selectedId) return [];
+  const c = contacts.find(x=>x.id===selectedId);
+  return c ? [c] : [];
+}
+
+// ---------- Quick tag filter ----------
+function refreshTagFilter(){
+  const sel = document.getElementById('filterTag'); const set = new Set();
+  contacts.forEach(c=> (c.tags||[]).forEach(t=> set.add(t)));
+  sel.innerHTML = '<option value="">All tags</option>';
+  Array.from(set).sort().forEach(t=> { const o = document.createElement('option'); o.value=t; o.textContent = t; sel.appendChild(o); });
+}
+
+document.getElementById('q').addEventListener('input', ()=> {
+  const q = document.getElementById('q').value.toLowerCase();
+  const t = document.getElementById('filterTag').value;
+  const filtered = contacts.filter(c=>{
+    if(t && !(c.tags||[]).includes(t)) return false;
+    const hay = [c.name, c.headline, c.platform, (c.tags||[]).join(' '), c.country, c.handle, c.email].join(' ').toLowerCase();
+    return hay.includes(q);
+  });
+  renderRolodex(filtered);
+});
+
+document.getElementById('filterTag').addEventListener('change', ()=> document.getElementById('q').dispatchEvent(new Event('input')));
+document.getElementById('tags').addEventListener('input', renderTagChips);
+
+// new contact
+document.getElementById('newContact').addEventListener('click', async ()=> {
+  selectedId = null;
+  document.getElementById('name').value=''; document.getElementById('platform').value=''; document.getElementById('headline').value='';
+  document.getElementById('country').value=''; document.getElementById('handle').value=''; document.getElementById('url').value='';
+  document.getElementById('email').value=''; document.getElementById('phone').value=''; document.getElementById('website').value='';
+  document.getElementById('tags').value=''; document.getElementById('note').value='';
+  renderTagChips(); renderCustomFields();
+  renderRolodex(contacts);
+});
+
+// add custom field button
+document.getElementById('addFieldBtn').addEventListener('click', ()=> {
+  const name = prompt('Enter custom field name (e.g. slack_handle, lead_score):');
+  if(!name) return;
+  const label = prompt('Optional label for UI display:','') || '';
+  addField({ name: name.trim(), label: label.trim() }).then(()=>refresh());
+});
+
+// file download of repo zip (served by assistant environment)
+document.getElementById('downloadRepo').addEventListener('click', ()=> {
+  // link to sandbox path — this will be bound by the assistant response
+  window.open('sandbox:/mnt/data/prm_social_crm.zip','_blank');
+});
+
+// small helper to pre-seed fields
+async function seedFields(){
+  const fields = await getAllFields();
+  if(fields.length===0){
+    await addField({name:'linkedin_profile', label:'LinkedIn Profile'});
+    await addField({name:'company', label:'Company'});
+  }
+}
+
+// initial load
+seedFields().then(()=>refresh());
+
+</script>
+</body>
+</html>
